@@ -2,11 +2,12 @@ import {
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
     onAuthStateChanged 
-} from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-auth.js';
-import { getFirestore, doc, setDoc } from 'https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js';
-import { auth, app } from './firebase-config.js';
+} from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+import { doc, setDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+import { auth, app, db } from './firebase-config.js';
 
-const db = getFirestore(app);
+// Remove this line since we're importing db from firebase-config.js
+// const db = getFirestore(app);
 
 // Signup functionality
 const signupForm = document.getElementById('signupForm');
@@ -69,15 +70,49 @@ if (loginForm) {
 }
 
 // Check authentication state
+let isRedirecting = false;
+
 onAuthStateChanged(auth, (user) => {
-    if (user) {
-        if (window.location.pathname.includes('login.html') || 
-            window.location.pathname.includes('signup.html')) {
-            window.location.href = 'dashboard.html';
+    if (isRedirecting) return;
+
+    const path = window.location.pathname;
+    const currentPage = path.split('/').pop() || 'index.html';
+    
+    const publicPages = ['login.html', 'signup.html', 'index.html'];
+    const isPublicPage = publicPages.includes(currentPage);
+
+    try {
+        if (user) {
+            // User is signed in
+            if (isPublicPage && currentPage !== 'index.html') {
+                isRedirecting = true;
+                window.location.replace('/dashboard.html');
+            }
+        } else {
+            // User is not signed in
+            if (!isPublicPage) {
+                isRedirecting = true;
+                window.location.replace('/login.html');
+            }
         }
-    } else {
-        if (window.location.pathname.includes('dashboard.html')) {
-            window.location.href = 'login.html';
-        }
+    } catch (error) {
+        console.error('Navigation error:', error);
     }
 });
+
+// Also update the form redirects to use absolute paths
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
+        try {
+            await signInWithEmailAndPassword(auth, email, password);
+            window.location.replace('/dashboard.html');
+        } catch (error) {
+            console.error('Login error:', error);
+            alert('Invalid email or password');
+        }
+    });
+}

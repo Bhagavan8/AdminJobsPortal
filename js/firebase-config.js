@@ -35,14 +35,5 @@ try {
     throw e;
 }
 
-// Add auth state observer
-auth.onAuthStateChanged((user) => {
-    if (user) {
-        console.log('User is signed in');
-    } else {
-        console.log('No user is signed in');
-        window.location.href = '/login.html';
-    }
-});
 
-export { auth, db, storage, ref, uploadBytes, getDownloadURL };
+export { app, auth, db, storage, ref, uploadBytes, getDownloadURL };
