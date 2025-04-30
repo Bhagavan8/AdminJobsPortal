@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Jobs - Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="css/style.css" rel="stylesheet">
+    <style>
+        .card {
+            box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+            border: none;
+            margin-bottom: 1.5rem;
+        }
+        .card-header {
+            background-color: #f8f9fa;
+            border-bottom: 1px solid rgba(0,0,0,.125);
+            padding: 1rem 1.25rem;
+        }
+        .form-label {
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+        .form-control:focus, .form-select:focus {
+            box-shadow: 0 0 0 0.25rem rgba(13,110,253,.15);
+        }
+        .btn-primary {
+            padding: 0.5rem 1.5rem;
+        }
+        .loading {
+            display: none;
+        }
+        .loading.active {
+            display: inline-block;
+        }
+        #logoPreview {
+            max-width: 200px;
+            max-height: 200px;
+            margin-top: 1rem;
+            display: none;
+        }
+        .section-collapse {
+            cursor: pointer;
+        }
+        .section-collapse i {
+            transition: transform 0.2s;
+        }
+        .section-collapse.collapsed i {
+            transform: rotate(-90deg);
+        }
+        .alert-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1050;
+        }
+    </style>
+</head>
+<body>
+    <div class="alert-container"></div>
+    
+    <div class="container mt-5 mb-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Upload Job Posting</h2>
+            <a href="dashboard.html" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+
+        <form id="uploadJobForm" class="needs-validation" novalidate>
+            <!-- Basic Job Information -->
+            <div class="card">
+                <div class="card-header section-collapse" data-bs-toggle="collapse" data-bs-target="#basicInfo">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Basic Job Information</h5>
+                        <i class="bi bi-chevron-down"></i>
+                    </div>
+                </div>
+                <div id="basicInfo" class="collapse show">
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="jobTitle" class="form-label">Job Title</label>
+                                <input type="text" class="form-control" id="jobTitle" required placeholder="e.g., Frontend Developer Intern">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="jobCategory" class="form-label">Job Category</label>
+                                <select class="form-select" id="jobCategory" required>
+                                    <option value="">Select Category</option>
+                                    <option value="IT">IT & Software</option>
+                                    <option value="marketing">Marketing</option>
+                                    <option value="finance">Finance</option>
+                                    <option value="sales">Sales</option>
+                                    <option value="hr">Human Resources</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="jobType" class="form-label">Job Type</label>
+                                <select class="form-select" id="jobType" required>
+                                    <option value="private">Private</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="employmentType" class="form-label">Employment Type</label>
+                                <select class="form-select" id="employmentType" required>
+                                    <option value="">Select Type</option>
+                                    <option value="fulltime">Full Time</option>
+                                    <option value="parttime">Part Time</option>
+                                    <option value="internship">Internship</option>
+                                    <option value="freelance">Freelance</option>
+                                    <option value="remote">Remote</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="experience" class="form-label">Experience Required</label>
+                                <input type="text" class="form-control" id="experience" required 
+                                    placeholder="e.g., 2 Years, 3-5 Years">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="location" class="form-label">Location (Optional)</label>
+                                <input type="text" class="form-control" id="location" 
+                                    placeholder="e.g., New York, NY, Remote, or Multiple Locations">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="educationLevel" class="form-label">Education Level</label>
+                                <input type="text" class="form-control" id="educationLevel" required 
+                                    placeholder="e.g., Bachelor's in Computer Science, MBA">
+                                <small class="text-muted">Enter all required education qualifications</small>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="noticePeriod" class="form-label">Notice Period (Optional)</label>
+                                <select class="form-select" id="noticePeriod">
+                                    <option value="">Select Notice Period</option>
+                                    <option value="immediate">Immediate Joining</option>
+                                    <option value="15">15 Days</option>
+                                    <option value="30">30 Days</option>
+                                    <option value="45">45 Days</option>
+                                    <option value="60">60 Days</option>
+                                    <option value="90">90 Days</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="skills" class="form-label">Required Skills</label>
+                            <input type="text" class="form-control" id="skills" required placeholder="e.g., JavaScript, React, Node.js">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Job Description</label>
+                            <textarea class="form-control" id="description" rows="6" required 
+                                placeholder="Enter detailed job description including:&#10;• Key responsibilities&#10;• Requirements&#10;• Benefits&#10;• Work environment"></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="qualifications" class="form-label">Desired Qualifications</label>
+                            <textarea class="form-control" id="qualifications" rows="4" 
+                                placeholder="Enter qualifications (one per line):&#10;• Bachelor's degree in related field&#10;• Strong communication skills&#10;• Problem-solving abilities"></textarea>
+                        </div>
+
+                        <div class="row mb-3">
+
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="salary" class="form-label">Salary Range (Optional)</label>
+                                <input type="text" class="form-control" id="salary" placeholder="e.g., $50,000 - $70,000">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="lastDate" class="form-label">Last Date to Apply</label>
+                                <input type="date" class="form-control" id="lastDate">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Company Information - Updated -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-building"></i> Company Information
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="companyName" class="form-label">Company Name</label>
+                            <input type="text" class="form-control" id="companyName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="companyWebsite" class="form-label">Company Website</label>
+                            <input type="url" class="form-control" id="companyWebsite" placeholder="https://...">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="aboutCompany" class="form-label">About Company</label>
+                        <textarea class="form-control" id="aboutCompany" rows="3" required></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="companyLogo" class="form-label">Company Logo</label>
+                        <input type="file" class="form-control" id="companyLogo" accept="image/*" required>
+                        <small class="text-muted">Upload company logo image</small>
+                        <img id="logoPreview" class="mt-2" style="max-width: 200px; display: none;" alt="Logo preview">
+                    </div>
+
+                    <!-- Social Links -->
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="linkedinLink" class="form-label">LinkedIn Post URL</label>
+                            <input type="url" class="form-control" id="linkedinLink" placeholder="LinkedIn post URL">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="facebookLink" class="form-label">Facebook Post URL</label>
+                            <input type="url" class="form-control" id="facebookLink" placeholder="Facebook post URL">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="whatsappLink" class="form-label">WhatsApp Link</label>
+                            <input type="url" class="form-control" id="whatsappLink" placeholder="WhatsApp link">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Application Method -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-envelope"></i> Application Method
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="applicationMethod" class="form-label">How to Apply</label>
+                            <select class="form-select" id="applicationMethod" required>
+                                <option value="">Select Method</option>
+                                <option value="link">External Link</option>
+                                <option value="email">Email Application</option>
+                                <option value="form">Application Form</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="applicationLink" class="form-label">Application Link/Email</label>
+                            <input type="text" class="form-control" id="applicationLink" required placeholder="URL or Email address">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Settings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="bi bi-gear"></i> Admin Settings
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="status" class="form-label">Listing Status</label>
+                            <select class="form-select" id="status" required>
+                                <option value="public">Public</option>
+                                <option value="private">Private</option>
+                                <option value="pending">Pending Review</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="isActive" class="form-label">Job Status</label>
+                            <select class="form-select" id="isActive" required>
+                                <option value="true">Active</option>
+                                <option value="false">Inactive</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="referralCode" class="form-label">Referral Code (Optional)</label>
+                            <input type="text" class="form-control" id="referralCode" placeholder="Enter referral code">
+                            <small class="text-muted">Leave empty if no referral code</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-end mt-4">
+                <button type="button" class="btn btn-secondary me-2" onclick="window.history.back()">
+                    <i class="bi bi-x-circle me-1"></i>Cancel
+                </button>
+                <button type="submit" class="btn btn-primary" id="submitBtn">
+                    <span class="spinner-border spinner-border-sm loading" role="status" aria-hidden="true"></span>
+                    <i class="bi bi-cloud-upload me-1"></i>Post Job
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Scripts -->
+    <!-- Replace the existing script tags with these -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+    <script src="js/firebase-config.js" type="module"></script>
+    <script src="js/jobs-upload.js" type="module"></script>
+</body>
+</html>
+    <script>
+        // Preview company logo
+        document.getElementById('companyLogo').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                const preview = document.getElementById('logoPreview');
+                
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.style.display = 'block';
+                }
+                
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // Form validation
+        const form = document.getElementById('uploadJobForm');
+        form.addEventListener('submit', function(event) {
+            if (!form.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            form.classList.add('was-validated');
+        });
+
+        // Show success/error messages
+        function showAlert(message, type = 'success') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.alert-container').appendChild(alertDiv);
+            setTimeout(() => alertDiv.remove(), 5000);
+        }
+    </script>
+</body>
+</html>
+
+
