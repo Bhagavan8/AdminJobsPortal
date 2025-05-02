@@ -34,6 +34,14 @@ document.getElementById('uploadJobForm').addEventListener('submit', async (e) =>
         }
         
         // Prepare job data
+        // Add this helper function at the top of your file
+        function getIndianTimestamp() {
+            const now = new Date();
+            const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)); // Add 5:30 hours for IST
+            return indiaTime.toISOString();
+        }
+        
+        // Update the jobData object timestamp fields
         const jobData = {
             jobTitle: document.getElementById('jobTitle').value,
             jobCategory: document.getElementById('jobCategory').value,
@@ -63,8 +71,8 @@ document.getElementById('uploadJobForm').addEventListener('submit', async (e) =>
             isActive: document.getElementById('isActive').value === 'true',
             referralCode: document.getElementById('referralCode').value,
             postedBy: user.uid,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            createdAt: getIndianTimestamp(),
+            updatedAt: getIndianTimestamp(),
             views: 0
         };
 
