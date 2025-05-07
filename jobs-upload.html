@@ -186,49 +186,66 @@
             <div class="card mb-4">
                 <div class="card-header">
                     <i class="bi bi-building"></i> Company Information
+                    <div class="float-end">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="searchCompanyBtn">
+                            <i class="bi bi-search"></i> Search Existing Company
+                        </button>
+                    </div>
                 </div>
                 <div class="card-body">
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label for="companyName" class="form-label">Company Name</label>
-                            <input type="text" class="form-control" id="companyName" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label for="companyWebsite" class="form-label">Company Website</label>
-                            <input type="url" class="form-control" id="companyWebsite" placeholder="https://...">
-                        </div>
-                    </div>
-
                     <div class="mb-3">
-                        <label for="aboutCompany" class="form-label">About Company</label>
-                        <textarea class="form-control" id="aboutCompany" rows="3" required></textarea>
+                        <input type="hidden" id="companyId">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="useExistingCompany">
+                            <label class="form-check-label" for="useExistingCompany">
+                                Use Existing Company
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="companyLogo" class="form-label">Company Logo</label>
-                        <input type="file" class="form-control" id="companyLogo" accept="image/*" required>
-                        <small class="text-muted">Upload company logo image</small>
-                        <img id="logoPreview" class="mt-2" style="max-width: 200px; display: none;" alt="Logo preview">
-                    </div>
+                    <div id="companyFormFields">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="companyName" class="form-label">Company Name</label>
+                                <input type="text" class="form-control" id="companyName">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="companyWebsite" class="form-label">Company Website</label>
+                                <input type="url" class="form-control" id="companyWebsite" placeholder="https://...">
+                            </div>
+                        </div>
 
-                    <!-- Social Links -->
-                    <div class="row">
-                        <div class="col-md-4">
-                            <label for="linkedinLink" class="form-label">LinkedIn Post URL</label>
-                            <input type="url" class="form-control" id="linkedinLink" placeholder="LinkedIn post URL">
+                        <div class="mb-3">
+                            <label for="aboutCompany" class="form-label">About Company</label>
+                            <textarea class="form-control" id="aboutCompany" rows="3"></textarea>
                         </div>
-                        <div class="col-md-4">
-                            <label for="facebookLink" class="form-label">Facebook Post URL</label>
-                            <input type="url" class="form-control" id="facebookLink" placeholder="Facebook post URL">
-                        </div>
-                        <div class="col-md-4">
-                            <label for="whatsappLink" class="form-label">WhatsApp Link</label>
-                            <input type="url" class="form-control" id="whatsappLink" placeholder="WhatsApp link">
+
+                        <div class="mb-3">
+                            <label for="companyLogo" class="form-label">Company Logo</label>
+                            <input type="file" class="form-control" id="companyLogo" accept="image/*">
+                            <small class="text-muted">Upload company logo image (optional if using existing company)</small>
+                            <img id="logoPreview" class="mt-2" style="max-width: 200px; display: none;" alt="Logo preview">
                         </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Social Links -->
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="linkedinLink" class="form-label">LinkedIn Post URL</label>
+                    <input type="url" class="form-control" id="linkedinLink" placeholder="LinkedIn post URL">
+                </div>
+                <div class="col-md-4">
+                    <label for="facebookLink" class="form-label">Facebook Post URL</label>
+                    <input type="url" class="form-control" id="facebookLink" placeholder="Facebook post URL">
+                </div>
+                <div class="col-md-4">
+                    <label for="whatsappLink" class="form-label">WhatsApp Link</label>
+                    <input type="url" class="form-control" id="whatsappLink" placeholder="WhatsApp link">
+                </div>
+            </div>
+            </div>
             <!-- Application Method -->
             <div class="card mb-4">
                 <div class="card-header">

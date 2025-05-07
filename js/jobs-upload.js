@@ -1,12 +1,18 @@
 import { db, storage, auth, ref, uploadBytes, getDownloadURL } from './firebase-config.js';
-import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { collection, addDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// Move getIndianTimestamp to top level
+function getIndianTimestamp() {
+    const now = new Date();
+    const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
+    return indiaTime.toISOString();
+}
 
 // Handle form submission
 document.getElementById('uploadJobForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
     try {
-        // Check authentication
         const user = auth.currentUser;
         if (!user) {
             throw new Error('User not authenticated');
@@ -18,30 +24,46 @@ document.getElementById('uploadJobForm').addEventListener('submit', async (e) =>
         submitButton.disabled = true;
         loadingSpinner.classList.add('active');
 
-        // Handle logo upload first
-        const logoFile = document.getElementById('companyLogo').files[0];
-        let logoURL = '';
+        // Handle company first
+        let companyId;
+        const companyName = document.getElementById('companyName').value;
         
-        if (logoFile) {
-            const fileName = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${logoFile.name}`;
-            const storageRef = ref(storage, `company-logos/${fileName}`);
+        // Check if company exists
+        const companiesRef = collection(db, 'companies');
+        const companyQuery = query(companiesRef, where('name', '==', companyName));
+        const companySnapshot = await getDocs(companyQuery);
+
+        if (!companySnapshot.empty) {
+            // Use existing company
+            companyId = companySnapshot.docs[0].id;
+        } else {
+            // Create new company
+            const logoFile = document.getElementById('companyLogo').files[0];
+            let logoURL = '';
             
-            // Upload the file
-            await uploadBytes(storageRef, logoFile, {
-                contentType: logoFile.type
-            });
-            logoURL = await getDownloadURL(storageRef);
+            if (logoFile) {
+                const fileName = `companies/${companyName}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${logoFile.name}`;
+                const storageRef = ref(storage, fileName);
+                await uploadBytes(storageRef, logoFile, {
+                    contentType: logoFile.type
+                });
+                logoURL = await getDownloadURL(storageRef);
+            }
+
+            const companyData = {
+                name: companyName,
+                website: document.getElementById('companyWebsite').value,
+                about: document.getElementById('aboutCompany').value,
+                logoURL: logoURL,
+                createdAt: getIndianTimestamp(),
+                updatedAt: getIndianTimestamp()
+            };
+
+            const newCompanyRef = await addDoc(companiesRef, companyData);
+            companyId = newCompanyRef.id;
         }
-        
-        // Prepare job data
-        // Add this helper function at the top of your file
-        function getIndianTimestamp() {
-            const now = new Date();
-            const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)); // Add 5:30 hours for IST
-            return indiaTime.toISOString();
-        }
-        
-        // Update the jobData object timestamp fields
+
+        // Prepare job data without company details
         const jobData = {
             jobTitle: document.getElementById('jobTitle').value,
             jobCategory: document.getElementById('jobCategory').value,
@@ -56,10 +78,7 @@ document.getElementById('uploadJobForm').addEventListener('submit', async (e) =>
             qualifications: document.getElementById('qualifications').value.split('\n').filter(qual => qual.trim()),
             salary: document.getElementById('salary').value || null,
             lastDate: document.getElementById('lastDate').value || null,
-            companyName: document.getElementById('companyName').value,
-            companyWebsite: document.getElementById('companyWebsite').value,
-            aboutCompany: document.getElementById('aboutCompany').value,
-            companyLogo: logoURL || document.getElementById('companyLogo').value,
+            companyId: companyId, // Reference to company document
             socialLinks: {
                 linkedin: document.getElementById('linkedinLink').value || null,
                 facebook: document.getElementById('facebookLink').value || null,
@@ -76,14 +95,12 @@ document.getElementById('uploadJobForm').addEventListener('submit', async (e) =>
             views: 0
         };
 
-        // Add to Firestore using v9 syntax
+        // Add job to Firestore
         const jobsCollection = collection(db, 'jobs');
         await addDoc(jobsCollection, jobData);
         
-        // Show success message
+        // Show success message and reset form
         showAlert('Job posted successfully!', 'success');
-        
-        // Reset form and UI
         document.getElementById('uploadJobForm').reset();
         document.getElementById('logoPreview').style.display = 'none';
         
@@ -124,4 +141,52 @@ function showAlert(message, type = 'success') {
     `;
     document.querySelector('.alert-container').appendChild(alertDiv);
     setTimeout(() => alertDiv.remove(), 5000);
+}
+
+// Company search functionality
+document.getElementById('searchCompanyBtn').addEventListener('click', async () => {
+    // Open a modal or dropdown with existing companies from the companies collection
+    // Let user select a company
+    // When selected, populate the form fields with company data
+    // Set the companyId field
+});
+
+// Toggle company form fields
+document.getElementById('useExistingCompany').addEventListener('change', function() {
+    const fields = document.getElementById('companyFormFields');
+    fields.style.display = this.checked ? 'none' : 'block';
+});
+
+// When submitting the form
+async function handleFormSubmit(event) {
+    event.preventDefault();
+    
+    const useExisting = document.getElementById('useExistingCompany').checked;
+    const companyId = document.getElementById('companyId').value;
+    
+    if (useExisting && companyId) {
+        // Use existing company reference
+        jobData.companyId = companyId;
+    } else {
+        // Create new company document
+        const companyData = {
+            name: document.getElementById('companyName').value,
+            website: document.getElementById('companyWebsite').value,
+            about: document.getElementById('aboutCompany').value
+        };
+        
+        // Upload logo if provided
+        const logoFile = document.getElementById('companyLogo').files[0];
+        if (logoFile) {
+            // Upload to storage and get URL
+            // Add URL to companyData
+        }
+        
+        // Check for existing company with same name to avoid duplicates
+        // If exists, use that instead
+        // If not, create new company document
+        // Store the company reference in jobData
+    }
+    
+    // Continue with job posting submission
 }
