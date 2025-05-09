@@ -145,10 +145,50 @@ function showAlert(message, type = 'success') {
 
 // Company search functionality
 document.getElementById('searchCompanyBtn').addEventListener('click', async () => {
-    // Open a modal or dropdown with existing companies from the companies collection
-    // Let user select a company
-    // When selected, populate the form fields with company data
-    // Set the companyId field
+    const companyName = document.getElementById('companyName').value.trim();
+    if (!companyName) {
+        showAlert('Please enter a company name to search', 'warning');
+        return;
+    }
+
+    try {
+        const companiesRef = collection(db, 'companies');
+        const companyQuery = query(companiesRef, where('name', '==', companyName));
+        const companySnapshot = await getDocs(companyQuery);
+
+        if (companySnapshot.empty) {
+            showAlert('No matching company found', 'warning');
+            return;
+        }
+
+        const companyData = companySnapshot.docs[0].data();
+        const companyId = companySnapshot.docs[0].id;
+
+        // Populate form fields with company data
+        document.getElementById('companyId').value = companyId;
+        document.getElementById('companyName').value = companyData.name;
+        document.getElementById('companyWebsite').value = companyData.website || '';
+        document.getElementById('aboutCompany').value = companyData.about || '';
+
+        // Show logo preview if exists
+        const logoPreview = document.getElementById('logoPreview');
+        if (companyData.logoURL) {
+            logoPreview.src = companyData.logoURL;
+            logoPreview.style.display = 'block';
+        }
+
+        // Check the "Use Existing Company" checkbox
+        const useExistingCheckbox = document.getElementById('useExistingCompany');
+        useExistingCheckbox.checked = true;
+        
+        // Disable company form fields
+        document.getElementById('companyFormFields').style.display = 'none';
+
+        showAlert('Company details loaded successfully', 'success');
+    } catch (error) {
+        console.error('Error searching company:', error);
+        showAlert('Error searching company: ' + error.message, 'danger');
+    }
 });
 
 // Toggle company form fields
@@ -190,3 +230,12 @@ async function handleFormSubmit(event) {
     
     // Continue with job posting submission
 }
+
+
+
+
+
+
+
+
+
