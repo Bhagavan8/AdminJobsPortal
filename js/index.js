@@ -86,7 +86,9 @@ auth.onAuthStateChanged((user) => {
             const userData = doc.data() || {};
             const firstName = capitalizeFirstLetter(userData.firstName || user.email.split('@')[0]);
             const profileImage = userData.profileImageUrl || user.profileImageUrl || '/images/default.webp';
+            const userRole = userData.role || 'User';
 
+            // Update top navigation user menu
             userMenuDropdown.innerHTML = `
                 <div class="dropdown">
                     <button class="user-dropdown" data-bs-toggle="dropdown">
@@ -115,15 +117,28 @@ auth.onAuthStateChanged((user) => {
                 </div>
             `;
 
-            document.getElementById('logoutBtn').addEventListener('click', (e) => {
-                e.preventDefault();
-                auth.signOut().then(() => {
-                    window.location.href = 'login.html';
-                });
-            });
+            // Update sidebar footer
+            const sidebarFooter = document.querySelector('.sidebar-footer');
+            sidebarFooter.innerHTML = `
+                <div class="user-profile">
+                    <img src="${profileImage}" alt="${firstName}" class="profile-img">
+                    <div class="profile-info">
+                        <h6 class="profile-name">${firstName}</h6>
+                        <span class="profile-role">${userRole}</span>
+                    </div>
+                </div>
+                <a href="#" class="logout-btn" id="sidebarLogoutBtn">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
+            `;
+
+            // Add event listeners for both logout buttons
+            document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+            document.getElementById('sidebarLogoutBtn').addEventListener('click', handleLogout);
         });
 
         initializeNotifications();
+        initializeCommentsCount(); // Add this line
     } else {
         userMenuDropdown.innerHTML = `
             <div class="dropdown">
@@ -520,5 +535,122 @@ auth.onAuthStateChanged((user) => {
     if (user) {
         initializeStatsCards();
         initializeJobsOverview();
+    }
+});
+
+// Add this function to handle logout
+function handleLogout(e) {
+    e.preventDefault();
+    auth.signOut().then(() => {
+        window.location.href = 'login.html';
+    });
+}
+
+
+// Initialize comments count
+function initializeCommentsCount() {
+    const commentsRef = collection(db, 'jobComments');
+    const unreadCommentsQuery = query(
+        commentsRef,
+        orderBy('createdAt', 'desc')
+    );
+
+    onSnapshot(unreadCommentsQuery, (snapshot) => {
+        const commentsCount = snapshot.size;
+        const commentsBadge = document.querySelector('.nav-link[href="comments.html"] .badge');
+        
+        if (commentsBadge) {
+            if (commentsCount > 0) {
+                commentsBadge.textContent = commentsCount;
+                commentsBadge.style.display = 'inline-block';
+            } else {
+                commentsBadge.style.display = 'none';
+            }
+        }
+    });
+}
+
+// Update the auth.onAuthStateChanged to include comments count initialization
+auth.onAuthStateChanged((user) => {
+    if (user) {
+        // Get additional user data from Firestore
+        const userRef = doc(db, 'users', user.uid);
+        getDoc(userRef).then((doc) => {
+            const userData = doc.data() || {};
+            const firstName = capitalizeFirstLetter(userData.firstName || user.email.split('@')[0]);
+            const profileImage = userData.profileImageUrl || user.profileImageUrl || '/images/default.webp';
+            const userRole = userData.role || 'User';
+
+            // Update top navigation user menu
+            userMenuDropdown.innerHTML = `
+                <div class="dropdown">
+                    <button class="user-dropdown" data-bs-toggle="dropdown">
+                        <div class="user-avatar">
+                            <img src="${profileImage}" alt="${firstName}">
+                            <span class="status-indicator online"></span>
+                        </div>
+                        <div class="user-info">
+                            <span class="user-name">${firstName}</span>
+                        </div>
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end animate slideIn">
+                        <li class="dropdown-header">Welcome, ${firstName}!</li>
+                        <li><a class="dropdown-item" href="profile.html">
+                            <i class="bi bi-person-circle me-2"></i>My Profile
+                        </a></li>
+                        <li><a class="dropdown-item" href="settings.html">
+                            <i class="bi bi-gear me-2"></i>Settings
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" id="logoutBtn">
+                            <i class="bi bi-box-arrow-right me-2"></i>Sign Out
+                        </a></li>
+                    </ul>
+                </div>
+            `;
+
+            // Update sidebar footer
+            const sidebarFooter = document.querySelector('.sidebar-footer');
+            sidebarFooter.innerHTML = `
+                <div class="user-profile">
+                    <img src="${profileImage}" alt="${firstName}" class="profile-img">
+                    <div class="profile-info">
+                        <h6 class="profile-name">${firstName}</h6>
+                        <span class="profile-role">${userRole}</span>
+                    </div>
+                </div>
+                <a href="#" class="logout-btn" id="sidebarLogoutBtn">
+                    <i class="bi bi-box-arrow-right"></i>
+                </a>
+            `;
+
+            // Add event listeners for both logout buttons
+            document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+            document.getElementById('sidebarLogoutBtn').addEventListener('click', handleLogout);
+        });
+
+        initializeNotifications();
+        initializeCommentsCount(); // Add this line
+    } else {
+        userMenuDropdown.innerHTML = `
+            <div class="dropdown">
+                <button class="user-dropdown" data-bs-toggle="dropdown">
+                    <i class="bi bi-person-circle me-2"></i>
+                    <span>Account</span>
+                    <i class="bi bi-chevron-down"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end animate slideIn">
+                    <li><a class="dropdown-item" href="login.html">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                    </a></li>
+                    <li><a class="dropdown-item" href="signup.html">
+                        <i class="bi bi-person-plus me-2"></i>Sign Up
+                    </a></li>
+                </ul>
+            </div>
+        `;
+
+        notificationsDropdown.innerHTML = '';
     }
 });
