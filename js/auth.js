@@ -5,6 +5,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
 import { doc, setDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 import { auth, app, db } from './firebase-config.js';
+import { setupRoleBasedMenu } from './index.js';
 
 let isRedirecting = false; // Added declaration
 
@@ -22,8 +23,29 @@ if (loginForm) {
         const password = document.getElementById('password').value;
 
         try {
-            await signInWithEmailAndPassword(auth, email, password);
-            window.location.href = 'dashboard.html'; // Consistent path
+            // Sign in user
+            const userCredential = await signInWithEmailAndPassword(auth, email, password);
+            const user = userCredential.user;
+
+            // Get user data from Firestore
+            const userRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userRef);
+            
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                // Store user role and data in localStorage
+                localStorage.setItem('userRole', userData.role);
+                localStorage.setItem('userData', JSON.stringify({
+                    name: userData.name,
+                    email: userData.email,
+                    role: userData.role
+                }));
+                
+                // Now redirect after setting the role
+                window.location.href = 'index.html';
+            } else {
+                throw new Error('User document not found');
+            }
         } catch (error) {
             console.error('Login error:', error);
             let errorMessage = 'Invalid email or password';
@@ -98,29 +120,57 @@ if (signupForm) {
 }
 
 // Auth state change handler
-onAuthStateChanged(auth, (user) => {
-    if (isRedirecting) return;
-
-    const path = window.location.pathname;
-    const currentPage = path.split('/').pop() || 'index.html';
-    
-    const publicPages = ['login.html', 'signup.html', 'index.html', ''];
-    const isPublicPage = publicPages.includes(currentPage);
-
-    try {
-        if (user) {
-            if (isPublicPage && currentPage !== 'index.html') {
-                isRedirecting = true;
-                window.location.href = 'dashboard.html'; // Consistent path
+onAuthStateChanged(auth, async (user) => {
+    if (user && !isRedirecting) {
+        isRedirecting = true;
+        try {
+            // Get user data from Firestore
+            const userRef = doc(db, 'users', user.uid);
+            const userDoc = await getDoc(userRef);
+            
+            if (userDoc.exists()) {
+                const userData = userDoc.data();
+                // Store user role and data in localStorage
+                localStorage.setItem('userRole', userData.role);
+                localStorage.setItem('userData', JSON.stringify({
+                    name: userData.name,
+                    email: userData.email,
+                    role: userData.role
+                }));
+                
+                // Initialize menu visibility if on dashboard or other pages
+                if (window.location.pathname.includes('dashboard') ||
+                    window.location.pathname.includes('index')) {
+                    setupRoleBasedMenu(userData.role);
+                }
+                
+                // Redirect if on login/signup page
+                if (window.location.pathname.includes('login') ||
+                    window.location.pathname.includes('signup')) {
+                    window.location.href = 'dashboard.html';
+                }
+            } else {
+                console.error('User document not found');
+                auth.signOut();
+                localStorage.clear();
+                window.location.href = 'login.html';
             }
-        } else {
-            if (!isPublicPage) {
-                isRedirecting = true;
-                window.location.href = 'login.html'; // Consistent path
-            }
+        } catch (error) {
+            console.error('Error fetching user data:', error);
+            auth.signOut();
+            localStorage.clear();
+            window.location.href = 'login.html';
         }
-    } catch (error) {
-        console.error('Navigation error:', error);
-        isRedirecting = false; // Reset if error occurs
+    } else if (!user) {
+        // Clear stored data when user is not authenticated
+        localStorage.clear();
+        
+        // Redirect to login if not on login/signup page
+        if (!window.location.pathname.includes('login') &&
+            !window.location.pathname.includes('signup')) {
+            window.location.href = 'login.html';
+        }
     }
 });
+
+

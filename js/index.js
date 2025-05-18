@@ -76,96 +76,15 @@ function updateNotificationsUI(notifications) {
     `;
 }
 
-// Handle user menu
-// Handle user menu
-auth.onAuthStateChanged((user) => {
-    if (user) {
-        // Get additional user data from Firestore
-        const userRef = doc(db, 'users', user.uid);
-        getDoc(userRef).then((doc) => {
-            const userData = doc.data() || {};
-            const firstName = capitalizeFirstLetter(userData.firstName || user.email.split('@')[0]);
-            const profileImage = userData.profileImageUrl || user.profileImageUrl || '/images/default.webp';
-            const userRole = userData.role || 'User';
-
-            // Update top navigation user menu
-            userMenuDropdown.innerHTML = `
-                <div class="dropdown">
-                    <button class="user-dropdown" data-bs-toggle="dropdown">
-                        <div class="user-avatar">
-                            <img src="${profileImage}" alt="${firstName}">
-                            <span class="status-indicator online"></span>
-                        </div>
-                        <div class="user-info">
-                            <span class="user-name">${firstName}</span>
-                        </div>
-                        <i class="bi bi-chevron-down"></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end animate slideIn">
-                        <li class="dropdown-header">Welcome, ${firstName}!</li>
-                        <li><a class="dropdown-item" href="profile.html">
-                            <i class="bi bi-person-circle me-2"></i>My Profile
-                        </a></li>
-                        <li><a class="dropdown-item" href="settings.html">
-                            <i class="bi bi-gear me-2"></i>Settings
-                        </a></li>
-                        <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="#" id="logoutBtn">
-                            <i class="bi bi-box-arrow-right me-2"></i>Sign Out
-                        </a></li>
-                    </ul>
-                </div>
-            `;
-
-            // Update sidebar footer
-            const sidebarFooter = document.querySelector('.sidebar-footer');
-            sidebarFooter.innerHTML = `
-                <div class="user-profile">
-                    <img src="${profileImage}" alt="${firstName}" class="profile-img">
-                    <div class="profile-info">
-                        <h6 class="profile-name">${firstName}</h6>
-                        <span class="profile-role">${userRole}</span>
-                    </div>
-                </div>
-                <a href="#" class="logout-btn" id="sidebarLogoutBtn">
-                    <i class="bi bi-box-arrow-right"></i>
-                </a>
-            `;
-
-            // Add event listeners for both logout buttons
-            document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-            document.getElementById('sidebarLogoutBtn').addEventListener('click', handleLogout);
-        });
-
-        initializeNotifications();
-        initializeCommentsCount(); // Add this line
-    } else {
-        userMenuDropdown.innerHTML = `
-            <div class="dropdown">
-                <button class="user-dropdown" data-bs-toggle="dropdown">
-                    <i class="bi bi-person-circle me-2"></i>
-                    <span>Account</span>
-                    <i class="bi bi-chevron-down"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end animate slideIn">
-                    <li><a class="dropdown-item" href="login.html">
-                        <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
-                    </a></li>
-                    <li><a class="dropdown-item" href="signup.html">
-                        <i class="bi bi-person-plus me-2"></i>Sign Up
-                    </a></li>
-                </ul>
-            </div>
-        `;
-
-        notificationsDropdown.innerHTML = '';
-    }
-});
 
 // Add this utility function
-function capitalizeFirstLetter(string) {
-    if (!string) return '';
-    return string.charAt(0).toUpperCase() + string.slice(1).toLowerCase();
+function capitalizeFirstLetter(str) {
+    if (!str) return '';
+    if (str.length <= 5) {
+        return str.toUpperCase();
+    } else {
+        return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    }
 }
 
 // Utility functions
@@ -241,6 +160,18 @@ function initializeStatsCards() {
     Object.values(statsCards).forEach(card => {
         card.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
     });
+
+    const newsRef = collection(db, 'news');
+    const newsQ = query(newsRef);
+    getDocs(newsQ).then(snapshot => {
+        let totalViews = 0;
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            totalViews += data.views || 0;
+        });
+        document.querySelector('.stats-card.bg-info .card-info h3').textContent = totalViews;
+    });
+  
 
     // Get current and last month dates
     const now = new Date();
@@ -378,7 +309,6 @@ async function initializeJobsOverview() {
 
             snapshot.forEach(doc => {
                 const jobData = doc.data();
-                console.log('Job data:', { id: doc.id, jobType: jobData.jobType, createdAt: jobData.createdAt });
                 
                 switch(jobData.jobType) {
                     case 'private':
@@ -531,55 +461,26 @@ async function initializeJobsOverview() {
 }
 
 
+// Update the auth.onAuthStateChanged handler
 auth.onAuthStateChanged((user) => {
-    if (user) {
-        initializeStatsCards();
-        initializeJobsOverview();
+    function handleLogout(e) {
+        e.preventDefault();
+        auth.signOut().then(() => {
+            window.location.href = '/';
+        });
     }
-});
-
-// Add this function to handle logout
-function handleLogout(e) {
-    e.preventDefault();
-    auth.signOut().then(() => {
-        window.location.href = 'login.html';
-    });
-}
-
-
-// Initialize comments count
-function initializeCommentsCount() {
-    const commentsRef = collection(db, 'jobComments');
-    const unreadCommentsQuery = query(
-        commentsRef,
-        orderBy('createdAt', 'desc')
-    );
-
-    onSnapshot(unreadCommentsQuery, (snapshot) => {
-        const commentsCount = snapshot.size;
-        const commentsBadge = document.querySelector('.nav-link[href="comments.html"] .badge');
-        
-        if (commentsBadge) {
-            if (commentsCount > 0) {
-                commentsBadge.textContent = commentsCount;
-                commentsBadge.style.display = 'inline-block';
-            } else {
-                commentsBadge.style.display = 'none';
-            }
-        }
-    });
-}
-
-// Update the auth.onAuthStateChanged to include comments count initialization
-auth.onAuthStateChanged((user) => {
+    
     if (user) {
-        // Get additional user data from Firestore
+         initializeStatsCards();
+        initializeJobsOverview();
+        // Existing code for logged-in users
         const userRef = doc(db, 'users', user.uid);
         getDoc(userRef).then((doc) => {
             const userData = doc.data() || {};
             const firstName = capitalizeFirstLetter(userData.firstName || user.email.split('@')[0]);
             const profileImage = userData.profileImageUrl || user.profileImageUrl || '/images/default.webp';
             const userRole = userData.role || 'User';
+            setupRoleBasedMenu(userRole);
 
             // Update top navigation user menu
             userMenuDropdown.innerHTML = `
@@ -620,37 +521,109 @@ auth.onAuthStateChanged((user) => {
                         <span class="profile-role">${userRole}</span>
                     </div>
                 </div>
-                <a href="#" class="logout-btn" id="sidebarLogoutBtn">
-                    <i class="bi bi-box-arrow-right"></i>
-                </a>
+                
             `;
 
             // Add event listeners for both logout buttons
             document.getElementById('logoutBtn').addEventListener('click', handleLogout);
-            document.getElementById('sidebarLogoutBtn').addEventListener('click', handleLogout);
+            
         });
 
-        initializeNotifications();
-        initializeCommentsCount(); // Add this line
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeNotifications();
+            initializeStatsCards();
+            initializeJobsOverview();
+            setupStatsListeners();
+        });
     } else {
-        userMenuDropdown.innerHTML = `
-            <div class="dropdown">
-                <button class="user-dropdown" data-bs-toggle="dropdown">
-                    <i class="bi bi-person-circle me-2"></i>
-                    <span>Account</span>
-                    <i class="bi bi-chevron-down"></i>
-                </button>
-                <ul class="dropdown-menu dropdown-menu-end animate slideIn">
-                    <li><a class="dropdown-item" href="login.html">
-                        <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
-                    </a></li>
-                    <li><a class="dropdown-item" href="signup.html">
-                        <i class="bi bi-person-plus me-2"></i>Sign Up
-                    </a></li>
-                </ul>
-            </div>
-        `;
+        // Hide all menu items except dashboard
+        const adminEmployerContent = document.getElementById('adminEmployerContent');
+        const adminOnlyContent = document.getElementById('adminOnlyContent');
+        const adminOnlyJobs = document.getElementById('adminOnlyJobs');
+        
+        if (adminEmployerContent) adminEmployerContent.style.display = 'none';
+        if (adminOnlyContent) adminOnlyContent.style.display = 'none';
+        if (adminOnlyJobs) adminOnlyJobs.style.display = 'none';
 
-        notificationsDropdown.innerHTML = '';
+        // Hide user profile and notifications
+        const userMenuDropdown = document.getElementById('userMenuDropdown');
+        const notificationsDropdown = document.getElementById('notificationsDropdown');
+        
+        if (userMenuDropdown) userMenuDropdown.style.display = 'none';
+        if (notificationsDropdown) notificationsDropdown.style.display = 'none';
+
+        // Show login button in the header
+        const topNavActions = document.querySelector('.top-nav-actions');
+        if (topNavActions) {
+            topNavActions.innerHTML = `
+                <a href="login.html" class="btn btn-primary">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Login
+                </a>
+            `;
+        }
     }
 });
+
+function setupStatsListeners() {
+    // News views listener
+    const newsRef = collection(db, 'news');
+    onSnapshot(query(newsRef), snapshot => {
+        let totalViews = 0;
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            totalViews += data.views || 0;
+        });
+        document.querySelector('.stats-card.bg-info .card-info h3').textContent = totalViews;
+    });
+}
+
+// Function to handle role-based menu visibility
+// Add this at the beginning of the file
+document.addEventListener('DOMContentLoaded', () => {
+    // Get user role from localStorage
+    const userRole = localStorage.getItem('userRole');
+    if (userRole) {
+        // Initialize menu visibility
+        setupRoleBasedMenu(userRole);
+    }
+});
+
+// Make sure this function is exported
+export function setupRoleBasedMenu(userRole) {
+    const adminEmployerContent = document.getElementById('adminEmployerContent');
+    const adminOnlyContent = document.getElementById('adminOnlyContent');
+    const adminOnlyJobs = document.getElementById('adminOnlyJobs');
+
+    if (!adminEmployerContent || !adminOnlyContent || !adminOnlyJobs) {
+        console.error('Menu elements not found');
+        return;
+    }
+
+    switch(userRole.toLowerCase()) {
+        case 'admin':
+            // Show all content for admin
+            adminEmployerContent.style.display = 'block';
+            adminOnlyContent.style.display = 'block';
+            adminOnlyJobs.style.display = 'block';
+            break;
+        case 'employer':
+            // Show limited content for employer
+            adminEmployerContent.style.display = 'block';
+            adminOnlyContent.style.display = 'none';
+            adminOnlyJobs.style.display = 'none';
+            break;
+        case 'user':
+            // Show only dashboard for regular users
+            adminEmployerContent.style.display = 'none';
+            adminOnlyContent.style.display = 'none';
+            adminOnlyJobs.style.display = 'none';
+            break;
+        default:
+            console.warn('Unknown user role:', userRole);
+            adminEmployerContent.style.display = 'none';
+            adminOnlyContent.style.display = 'none';
+            adminOnlyJobs.style.display = 'none';
+    }
+}
+
+

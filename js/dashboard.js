@@ -1,97 +1,34 @@
 import { auth, db } from './firebase-config.js';
-import { 
-    collection, 
-    query, 
-    where, 
-    orderBy, 
+import {
+    collection,
+    query,
+    orderBy,
     getDocs,
-    getCountFromServer,
+    getDoc,
     doc,
     deleteDoc,
-    updateDoc 
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
-async function loadAllData() {
-    try {
-        // Total Articles Count
-        const articlesSnapshot = await getCountFromServer(collection(db, 'news'));
-        document.getElementById('articlesCount').textContent = articlesSnapshot.data().count;
-
-        // Total Users Count
-        const usersSnapshot = await getCountFromServer(collection(db, 'users'));
-        document.getElementById('usersCount').textContent = usersSnapshot.data().count;
-
-        // Total Views (sum of views from all news articles)
-        const newsRefcount = collection(db, 'news');
-        const newsSnapshot = await getDocs(newsRefcount);
-        const totalNewsViews = newsSnapshot.docs.reduce((sum, doc) => sum + (doc.data().views || 0), 0);
-        document.getElementById('newsViewsCount').textContent = totalNewsViews;
-
-        // Total Job Views (sum of views from jobs collection)
-        const jobsviews = collection(db, 'jobs');
-        const jobsSnapshot = await getDocs(jobsviews);
-        const totalJobViews = jobsSnapshot.docs.reduce((sum, doc) => sum + (doc.data().views || 0), 0);
-        document.getElementById('jobViewsCount').textContent = totalJobViews;
-
-        // News Statistics
-        const newsRef = collection(db, 'news');
-        const activeNewsQuery = query(newsRef, where('approvalStatus', '==', 'approved'));
-        const activeNewsCount = await getCountFromServer(activeNewsQuery);
-        const totalNewsCount = await getCountFromServer(newsRef);
-        
-        document.getElementById('activeNewsCount').textContent = activeNewsCount.data().count;
-        document.getElementById('totalNewsCount').textContent = totalNewsCount.data().count;
-
-        // Jobs Statistics
-        const jobsRef = collection(db, 'jobs');
-        const today = new Date();
-        const activeJobsQuery = query(jobsRef, where('isActive', '==', true));
-        const expiredJobsQuery = query(jobsRef, where('lastDate', '<', today));
-        
-        const activeJobsCount = await getCountFromServer(activeJobsQuery);
-        const expiredJobsCount = await getCountFromServer(expiredJobsQuery);
-        
-        document.getElementById('activeJobsCount').textContent = activeJobsCount.data().count;
-        document.getElementById('expiredJobsCount').textContent = expiredJobsCount.data().count;
-
-        // Stories Statistics
-        const storiesRef = collection(db, 'stories');
-        const publishedStoriesQuery = query(storiesRef, where('status', '==', 'published'));
-        const draftStoriesQuery = query(storiesRef, where('status', '==', 'draft'));
-        
-        const publishedStoriesCount = await getCountFromServer(publishedStoriesQuery);
-        const draftStoriesCount = await getCountFromServer(draftStoriesQuery);
-        
-        document.getElementById('publishedStoriesCount').textContent = publishedStoriesCount.data().count;
-        document.getElementById('draftStoriesCount').textContent = draftStoriesCount.data().count;
-
-        // Affiliate Posts Statistics
-        const affiliateRef = collection(db, 'affiliate');
-        const activeAffiliateQuery = query(affiliateRef, where('status', '==', 'active'));
-        const activeAffiliateCount = await getCountFromServer(activeAffiliateQuery);
-        
-        // Calculate total clicks
-        const affiliateSnapshot = await getDocs(affiliateRef);
-        const totalClicks = affiliateSnapshot.docs.reduce((sum, doc) => sum + (doc.data().clicks || 0), 0);
-        
-        document.getElementById('activeAffiliateCount').textContent = activeAffiliateCount.data().count;
-        document.getElementById('totalAffiliateClicks').textContent = totalClicks;
-
-    } catch (error) {
-        console.error('Error loading statistics:', error);
-        alert('Failed to load some statistics. Please refresh the page.');
-    }
-}
 
 // Initialize when auth state changes
 onAuthStateChanged(auth, (user) => {
+    console.log(user);
     if (!user) {
         window.location.href = 'login.html';
     } else {
-        document.getElementById('userName').textContent = user.email;
-        loadAllData();
-        loadTables(); // Make sure this function exists to load table data
+        const email = user.email || '';
+        const namePart = email.split('@')[0]; // Get part before @
+
+        // Remove numbers and special characters, keep only letters
+        const lettersOnly = namePart.replace(/[^a-zA-Z]/g, '');
+
+        // Capitalize the first letter, rest lowercase
+        const displayName = lettersOnly.charAt(0).toUpperCase() + lettersOnly.slice(1).toLowerCase();
+
+        document.getElementById('userName').textContent = displayName;
+
+        loadTables(); 
     }
 });
 
@@ -104,110 +41,240 @@ window.addEventListener('error', (event) => {
     }
 });
 
-// Add this function after loadAllData()
+function isAdmin() {
+    const userRole = localStorage.getItem('userRole');
+    return userRole === 'Admin';
+}
+
+
+// Add these variables at the top of the file
+const ITEMS_PER_PAGE = 10;
+let currentPage = {
+    news: 1,
+    jobs: 1,
+    stories: 1,
+    affiliate: 1
+};
+
 async function loadTables() {
     try {
-        // Load News Table
+        // Load News Table with pagination
         const newsRef = collection(db, 'news');
         const newsQuery = query(newsRef, orderBy('createdAt', 'desc'));
         const newsSnapshot = await getDocs(newsQuery);
         const newsTableBody = document.getElementById('newsTableBody');
-        newsTableBody.innerHTML = '';
-        newsSnapshot.forEach(doc => {
-            const news = doc.data();
-            newsTableBody.innerHTML += `
-                <tr>
-                    <td>${news.title}</td>
-                    <td>${news.category}</td>
-                    <td>${new Date(news.createdAt?.toDate()).toLocaleDateString()}</td>
-                    <td>${news.views || 0}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary edit-btn" data-id="${doc.id}" data-type="news">Edit</button>
-                        <button class="btn btn-sm btn-danger delete-btn" data-id="${doc.id}" data-type="news">Delete</button>
-                    </td>
-                </tr>`;
-        });
+        const newsPagination = document.getElementById('newsPagination');
+        updateTable('news', newsSnapshot.docs, newsTableBody, newsPagination);
 
-        // Load Jobs Table
+        // Load Jobs Table with pagination
         const jobsRef = collection(db, 'jobs');
         const jobsQuery = query(jobsRef, orderBy('createdAt', 'desc'));
         const jobsSnapshot = await getDocs(jobsQuery);
         const jobsTableBody = document.getElementById('jobsTableBody');
-        jobsTableBody.innerHTML = '';
-        jobsSnapshot.forEach(doc => {
-            const job = doc.data();
-            jobsTableBody.innerHTML += `
-                <tr>
-                    <td>${job.jobTitle}</td>
-                    <td>${job.companyName}</td>
-                    <td>${job.createdAt ? (job.createdAt.seconds ? new Date(job.createdAt.seconds * 1000).toLocaleDateString() : new Date(job.createdAt).toLocaleDateString()) : 'N/A'}</td>
-                    <td>${job.lastDate ? (job.lastDate.seconds ? new Date(job.lastDate.seconds * 1000).toLocaleDateString() : new Date(job.lastDate).toLocaleDateString()) : 'No deadline'}</td>
-                    <td>${job.status}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary edit-btn" data-id="${doc.id}" data-type="jobs">Edit</button>
-                        <button class="btn btn-sm btn-danger delete-btn" data-id="${doc.id}" data-type="jobs">Delete</button>
-                    </td>
-                </tr>`;
-        });
+        const jobsPagination = document.getElementById('jobsPagination');
+        await updateJobsTable(jobsSnapshot.docs, jobsTableBody, jobsPagination);
 
-        // Load Stories Table
+        // Load Stories Table with pagination
         const storiesRef = collection(db, 'stories');
         const storiesQuery = query(storiesRef, orderBy('createdAt', 'desc'));
         const storiesSnapshot = await getDocs(storiesQuery);
         const storiesTableBody = document.getElementById('storiesTableBody');
-        storiesTableBody.innerHTML = '';
-        storiesSnapshot.forEach(doc => {
-            const story = doc.data();
-            storiesTableBody.innerHTML += `
-                <tr>
-                    <td>${story.title}</td>
-                    <td>${story.category}</td>
-                    <td>${story.chapters || 0}</td>
-                    <td>${story.status}</td>
-                    <td>${story.views || 0}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary edit-btn" data-id="${doc.id}" data-type="stories">Edit</button>
-                        <button class="btn btn-sm btn-danger delete-btn" data-id="${doc.id}" data-type="stories">Delete</button>
-                    </td>
-                </tr>`;
-        });
+        const storiesPagination = document.getElementById('storiesPagination');
+        updateTable('stories', storiesSnapshot.docs, storiesTableBody, storiesPagination);
 
-        // Load Affiliate Table
+        // Load Affiliate Table with pagination
         const affiliateRef = collection(db, 'affiliate');
         const affiliateQuery = query(affiliateRef, orderBy('createdAt', 'desc'));
         const affiliateSnapshot = await getDocs(affiliateQuery);
         const affiliateTableBody = document.getElementById('affiliateTableBody');
-        affiliateTableBody.innerHTML = '';
-        affiliateSnapshot.forEach(doc => {
-            const affiliate = doc.data();
-            affiliateTableBody.innerHTML += `
-                <tr>
-                    <td>${affiliate.product}</td>
-                    <td>${affiliate.category}</td>
-                    <td>${affiliate.price}</td>
-                    <td>${affiliate.clicks || 0}</td>
-                    <td>${affiliate.status}</td>
-                    <td>
-                        <button class="btn btn-sm btn-primary edit-btn" data-id="${doc.id}" data-type="affiliate">Edit</button>
-                        <button class="btn btn-sm btn-danger delete-btn" data-id="${doc.id}" data-type="affiliate">Delete</button>
-                    </td>
-                </tr>`;
-        });
-
-        // Add event listeners for edit and delete buttons
-        document.querySelectorAll('.edit-btn').forEach(button => {
-            button.removeEventListener('click', handleEdit); // Remove existing listeners
-            button.addEventListener('click', handleEdit);
-        });
-        document.querySelectorAll('.delete-btn').forEach(button => {
-            button.removeEventListener('click', handleDelete); // Remove existing listeners
-            button.addEventListener('click', handleDelete);
-        });
+        const affiliatePagination = document.getElementById('affiliatePagination');
+        updateTable('affiliate', affiliateSnapshot.docs, affiliateTableBody, affiliatePagination);
 
     } catch (error) {
         console.error('Error loading tables:', error);
         alert('Failed to load some data. Please refresh the page.');
     }
+}
+
+function updateTable(type, docs, tableBody, paginationElement) {
+    const totalPages = Math.ceil(docs.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage[type] - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const currentDocs = docs.slice(startIndex, endIndex);
+
+    tableBody.innerHTML = '';
+    
+    currentDocs.forEach(doc => {
+        const data = doc.data();
+        let row = '';
+        const actionButtons = isAdmin() ? `
+            <button class="btn btn-sm btn-primary edit-btn" data-id="${doc.id}" data-type="${type}">Edit</button>
+            <button class="btn btn-sm btn-danger delete-btn" data-id="${doc.id}" data-type="${type}">Delete</button>
+        ` : '';
+        
+        switch(type) {
+            case 'news':
+                row = `
+                    <tr>
+                        <td>${data.title}</td>
+                        <td>${data.category}</td>
+                        <td>${new Date(data.createdAt?.toDate()).toLocaleDateString()}</td>
+                        <td>${data.views || 0}</td>
+                        <td>${actionButtons}</td>
+                    </tr>`;
+                break;
+            case 'stories':
+                row = `
+                    <tr>
+                        <td>${data.title}</td>
+                        <td>${data.category}</td>
+                        <td>${data.chapters || 0}</td>
+                        <td>${data.status}</td>
+                        <td>${data.views || 0}</td>
+                        <td>${actionButtons}</td>
+                    </tr>`;
+                break;
+            case 'affiliate':
+                row = `
+                    <tr>
+                        <td>${data.product}</td>
+                        <td>${data.category}</td>
+                        <td>${data.price}</td>
+                        <td>${data.clicks || 0}</td>
+                        <td>${data.status}</td>
+                        <td>${actionButtons}</td>
+                    </tr>`;
+                break;
+        }
+        
+        tableBody.innerHTML += row;
+    });
+
+    // Update pagination
+    updatePagination(type, totalPages, paginationElement);
+
+    // Reattach event listeners
+    attachEventListeners();
+}
+
+async function updateJobsTable(docs, tableBody, paginationElement) {
+    const totalPages = Math.ceil(docs.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage['jobs'] - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const currentDocs = docs.slice(startIndex, endIndex);
+
+    tableBody.innerHTML = '';
+    
+    // Fetch all company details in parallel for better performance
+    const companyPromises = currentDocs
+        .filter(docSnapshot => docSnapshot.data().companyId)
+        .map(async docSnapshot => {
+            const job = docSnapshot.data();
+            try {
+                // Use the imported doc function from Firestore
+                const companyRef = doc(db, 'companies', job.companyId.toString());
+                const companySnapshot = await getDoc(companyRef);
+                return {
+                    jobId: docSnapshot.id,
+                    companyName: companySnapshot.exists() ? companySnapshot.data().name : job.companyName
+                };
+            } catch (error) {
+                console.error('Error fetching company details:', error);
+                return { jobId: docSnapshot.id, companyName: job.companyName };
+            }
+        });
+
+    // Wait for all company details to be fetched
+    const companyDetails = await Promise.all(companyPromises);
+    const companyMap = new Map(companyDetails.map(detail => [detail.jobId, detail.companyName]));
+   
+    // Render table rows
+    for (const docSnapshot of currentDocs) {
+        const job = docSnapshot.data();
+        const companyName = companyMap.get(docSnapshot.id) || job.companyName;
+        // Only show action buttons for Admin users
+        const actionButtons = isAdmin() ? `
+            <button class="btn btn-sm btn-primary edit-btn" data-id="${docSnapshot.id}" data-type="jobs">Edit</button>
+            <button class="btn btn-sm btn-danger delete-btn" data-id="${docSnapshot.id}" data-type="jobs">Delete</button>
+        ` : '';
+        tableBody.innerHTML += `
+            <tr>
+                <td>${job.jobTitle}</td>
+                <td>${companyName}</td>
+                <td>${job.createdAt ? (job.createdAt.seconds ? new Date(job.createdAt.seconds * 1000).toLocaleDateString() : new Date(job.createdAt).toLocaleDateString()) : 'N/A'}</td>
+                <td>${job.lastDate ? (job.lastDate.seconds ? new Date(job.lastDate.seconds * 1000).toLocaleDateString() : new Date(job.lastDate).toLocaleDateString()) : 'No deadline'}</td>
+                <td>${job.status}</td>
+                <td>${actionButtons}</td>
+            </tr>`;
+    }
+
+    // Update pagination
+    updatePagination('jobs', totalPages, paginationElement);
+
+    // Reattach event listeners
+    attachEventListeners();
+}
+
+function updatePagination(type, totalPages, paginationElement) {
+    paginationElement.innerHTML = '';
+    
+    if (totalPages <= 1) return;
+
+    const createPageButton = (pageNum, isActive = false) => {
+        const li = document.createElement('li');
+        li.className = `page-item${isActive ? ' active' : ''}`;
+        li.innerHTML = `<button class="page-link" data-page="${pageNum}" data-type="${type}">${pageNum}</button>`;
+        return li;
+    };
+
+    const ul = document.createElement('ul');
+    ul.className = 'pagination justify-content-center';
+
+    // Previous button
+    const prevLi = document.createElement('li');
+    prevLi.className = `page-item${currentPage[type] === 1 ? ' disabled' : ''}`;
+    prevLi.innerHTML = `<button class="page-link" data-page="${currentPage[type] - 1}" data-type="${type}">Previous</button>`;
+    ul.appendChild(prevLi);
+
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+        ul.appendChild(createPageButton(i, i === currentPage[type]));
+    }
+
+    // Next button
+    const nextLi = document.createElement('li');
+    nextLi.className = `page-item${currentPage[type] === totalPages ? ' disabled' : ''}`;
+    nextLi.innerHTML = `<button class="page-link" data-page="${currentPage[type] + 1}" data-type="${type}">Next</button>`;
+    ul.appendChild(nextLi);
+
+    paginationElement.appendChild(ul);
+
+    // Add event listeners to pagination buttons
+    paginationElement.querySelectorAll('.page-link').forEach(button => {
+        button.addEventListener('click', handlePagination);
+    });
+}
+
+function handlePagination(e) {
+    e.preventDefault();
+    const page = parseInt(e.target.dataset.page);
+    const type = e.target.dataset.type;
+    
+    if (page < 1) return;
+    
+    currentPage[type] = page;
+    loadTables(); // Reload tables with new page
+}
+
+function attachEventListeners() {
+    document.querySelectorAll('.edit-btn').forEach(button => {
+        button.removeEventListener('click', handleEdit);
+        button.addEventListener('click', handleEdit);
+    });
+    document.querySelectorAll('.delete-btn').forEach(button => {
+        button.removeEventListener('click', handleDelete);
+        button.addEventListener('click', handleDelete);
+    });
 }
 
 // Add these functions before loadTables
@@ -230,12 +297,11 @@ async function handleDelete(e) {
     e.preventDefault();
     const id = e.target.dataset.id;
     const type = e.target.dataset.type;
-    
+
     if (confirm(`Are you sure you want to delete this ${type} item?`)) {
         try {
             await deleteDoc(doc(db, type, id));
-            // Refresh the data
-            await loadAllData();
+
             await loadTables();
         } catch (error) {
             console.error('Error deleting item:', error);
